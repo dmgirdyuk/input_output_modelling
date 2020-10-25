@@ -1,0 +1,18 @@
+Архивы с таблицами МОБ и расширенной информацией по добавленным
+стоимостям можно скачать по ссылке: 
+https://stats.oecd.org/Index.aspx?DataSetCode=IOTSI4_2018#
+Export -> Related files
+NATIODOMINP.zip, VAROW.zip
+Архивы распакованы в папке 'data'
+Файл с добавленными стоимостями VAROW.csv содержит UTF-16 маркер
+последовательности байтов, не воспринимаемый матлабом.
+Скрипт utf16Fix.m решает проблему
+
+
+Данные по обменным курсам можно выгрузить по ссылке:
+https://data.oecd.org/conversion/exchange-rates.htm
+csv-файл за 2005--2015 гг. находится в папке 'data/EXCHANGE_RATES'
+
+
+Данные по ВВП выгружаются из БД OECD при помощи скрипта 
+misc/downloadGdpData.m
