@@ -1,84 +1,74 @@
 function inputOutputModel = staticModelConstruction(year, countryName, ...
-    aggregNumb, countryRealGdp, aggregSect)
+    aggregNumb, countryRealGdp, aggregSect, showStats)
 % Построение статической модели МОБ на основе таблицы БД OECD
 % 
-%     Входные аргументы:
+% Входные аргументы:
 %     year -- год из интервала [2005, 2015];
 %     countryName -- трехсимвольная строка, кодификатор страны;
 %     aggregNumb -- количество агрегированных секторов;
 %     countryRealGdp -- ВВП countryName;
 %     aggregSect -- вектор-столбец размерности 1x37, компоненты которого
-%     указывают вхождение экономического сектора в агрегированный сектор.
+%       указывают вхождение экономического сектора в агрегированный сектор;
+%     showStats -- проверка подсчета ВВП по таблицам МОБ и выполнения 
+%       балансовых соотношений модели;
 % 
-%     Выходной аргумент:
+% Выходной аргумент:
 %     inputOutputModel -- структура, содержащая компоненты статической
-%     модели МОБ
+%       модели МОБ;
 
 % Количество секторов экономики в таблицах OECD
-N_SECT = 36;
+nSect = 36;
 
-% Обработка отсутствующих входных аргументов
-if nargin < 5
-    if exist('aggregNumb', 'file') 
+if ~exist('year', 'var')
+    year = 2005;
+end
+if ~exist('countryName', 'var') 
+    countryName = 'USA';
+end
+if ~exist('aggregNumb', 'var') 
+    aggregNumb = 4;
+end
+if ~exist('aggregSect', 'var') 
         % Описание агрегации (в 4 сектора) экономических секторов 
-        % представлено в файле sectAggreg.xlsx
+        % представлено в файле 'data/sectAggreg.xlsx'
         switch aggregNumb
             case 2
-                aggregSect = [ones(N_SECT, 1); 2];
+                aggregSect = [ones(nSect, 1); 2];
             case 4
                 aggregSect = [ones(20, 1); 2 * ones(11, 1); ...
                     3 * ones(5, 1); 4];
             otherwise
-                aggregSect = linspace(1, N_SECT + 1, N_SECT + 1)';       
+                aggregSect = linspace(1, nSect + 1, nSect + 1)';       
         end
-    end
-    if nargin < 4
-        countryRealGdp = 0;
-        if nargin < 3
-            aggregNumb = 4;
-            aggregSect = [ones(20, 1); 2 * ones(11, 1); 3 * ones(5, 1); 4];
-            if nargin < 2
-                countryName = "DEU";
-                if nargin < 1
-                    year = 2005;
-                end
-            end    
-        end
-    end
+end
+if ~exist('countryRealGdp', 'var') 
+    countryRealGdp = 0;
+end
+if ~exist('showStats', 'var') 
+    showStats = true;
 end
 
-% Архивы с таблицами МОБ и расширенной информацией по добавленным
-% стоимостям можно скачать по ссылке: 
-% https://stats.oecd.org/Index.aspx?DataSetCode=IOTSI4_2018#
-% Export -> Related files
-% NATIODOMINP.zip, VAROW.zip
-% Архивы распакованы в папке 'data/'
-% Файл с добавленными стоимостями VAROW.csv содержит UTF-16 маркер
-% последовательности байтов, не воспринимаемый матлабом.
-% Скрипт thirdparty/utf16Fix.m решает проблему
-tDomImp = readtable(fullfile('data', 'NATIODOMIMP', countryName, ...
-    num2str(year), 'dom.csv'));
+% Подробная информация об источниках данных содержится в файле
+% 'data/data_sources.txt'
+tDomImp = readtable(fullfile('data', 'NATIODOMIMP', join([countryName, ...
+    num2str(year), 'dom.csv'], '')));
 tValueAdded = readtable(fullfile('data', 'VAROW', 'VAROW_ascii.csv'), ...
     'Delimiter', '|', 'ReadVariableName', false);
-% tDomImp = readtable(join(['data/NATIODOMIMP/', ...
-%     countryName, num2str(year), 'dom.csv'], ''));
-% tValueAdded = readtable('data/VAROW/VAROW_ascii.csv', ...
-%     'Delimiter', '|', 'ReadVariableName', false);
 
-% Матрица промежуточных затрат Zd (внутри страны)
-Zd = table2array(tDomImp(1:N_SECT, 2:N_SECT + 1));
+% Матрица промежуточных затрат Pd (внутри страны)
+Pd = table2array(tDomImp(1:nSect, 2:nSect + 1));
 
 % Матрица промежуточных затрат Zm (на импорт)
-Zm = table2array(tDomImp(N_SECT + 1:2 * N_SECT, 2:N_SECT + 1));
+Pm = table2array(tDomImp(nSect + 1:2 * nSect, 2:nSect + 1));
 
 % Матрица чистых налогов на промежуточную продукцию 
 % Tproducts(уплаченные вне и внутри страны соответственно)
-TProducts = table2array(tDomImp(2 * N_SECT + 1:2 * N_SECT + 2, ...
-    2:N_SECT + 1));
+TProducts = table2array(tDomImp(2 * nSect + 1:2 * nSect + 2, ...
+    2:nSect + 1));
 
 % Матрица чистых налогов на конечную продукцию TFinProducts
-TFinProducts = table2array(tDomImp(2 * N_SECT + 1:2 * N_SECT + 2, ...
-    N_SECT + 2:N_SECT + 9));
+TFinProducts = table2array(tDomImp(2 * nSect + 1:2 * nSect + 2, ...
+    nSect + 2:nSect + 9));
 
 % Строка оплаты труда W
 W = table2array(...
@@ -99,113 +89,118 @@ Gops = table2array(...
     6))';
 
 % Матрица конечного потребления домашних хозяйств C
-C = table2array(tDomImp(1:N_SECT, ...
-    N_SECT + 2:N_SECT + 3));
+C = table2array(tDomImp(1:nSect, ...
+    nSect + 2:nSect + 3));
 
 % Вектор затрат государства на конечное потребление G
-G = table2array(tDomImp(1:N_SECT, ...
-    N_SECT + 4));
+G = table2array(tDomImp(1:nSect, ...
+    nSect + 4));
 
-% Матрица инвестиций I
-I = table2array(tDomImp(1:N_SECT, ...
-    N_SECT + 5:N_SECT + 6));
+% Матрица инвестиций Cp
+Cp = table2array(tDomImp(1:nSect, ...
+    nSect + 5:nSect + 6));
 
 % Матрица экспорта Ex
-Ex = table2array(tDomImp(1:N_SECT, ...
-    N_SECT + 8:N_SECT + 9));
+Ex = table2array(tDomImp(1:nSect, ...
+    nSect + 8:nSect + 9));
 
-% Строка выпуска X
-X = table2array(tDomImp(2 * N_SECT + 5, 2:N_SECT + 1));
+% Строка выпуска I
+I = table2array(tDomImp(2 * nSect + 5, 2:nSect + 1));
 
-% % столбец выпуска X -- таблицы OECD не являются полностью
-% % сбалансированными, поэтому необходимо скорректировать вектор Y на
-% % величину отклонения (хоть и незначительную)
-% Xc = table2array(tDomImp(1:N_SECT, ...
-%     N_SECT + 11));
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Выпуски
-X = (X - TProducts(1, :))';
-% X = X';
+I = (I - TProducts(1, :))';
 
 % Строка добавленной стоимости
 VA = W + TProduction + Gops;
 
 % Инвестиции
-I = sum(I,2);
+Cp = sum(Cp,2);
 
 % ВВП
 GDP = sum(VA) + sum(TProducts(2, :)) + sum(TFinProducts(2, :));
 
 % вектор конечного спроса
-Y = sum(C, 2) + G + sum(I, 2) + sum(Ex, 2) - sum(Zm, 2) - TProducts(1, :)';
-% Y = sum(C, 2) + G + sum(I, 2) + sum(Ex, 2) - sum(Zm, 2);
-
-sum(VA + TProducts(2, :))
-sum(Y)
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Y = sum(C, 2) + G + sum(Cp, 2) + ...
+    sum(Ex, 2) - sum(Pm, 2) - TProducts(1, :)';
 
 % вычисление расширенной матрицы технологических коэффициентов
-n = size(X,1);
+n = size(I, 1);
 for j = 1 : n
-    if X(j) ~= 0
-        A(:,j) = (Zd(:,j) + Zm(:,j)) / X(j);
-        VAr(j) = (VA(j) + TProducts(2,j)) / X(j);
+    if I(j) ~= 0
+        R(:, j) = (Pd(:, j) + Pm(:, j)) / I(j);
+        VAr(j) = (VA(j) + TProducts(2, j)) / I(j);
     else
-        A(:,j) = 0;
+        R(:, j) = 0;
         VAr(j) = 0;
     end
 end
 
-% коррекция балансовых соотношений
-err = X - A * X - Y;
+% столбец выпуска I -- таблицы OECD не являются полностью
+% сбалансированными, поэтому необходимо скорректировать вектор Y на
+% величину отклонения (хоть и незначительную)
+err = I - R * I - Y;
 Y = Y + err;
 
-X = [X; GDP];
-A = [A, Y / GDP; VAr, sum(TFinProducts(2,:)) / GDP];
+I = [I; GDP];
+R = [R, Y / GDP; VAr, sum(TFinProducts(2, :)) / GDP];
 
-% контроль
-showStats = 0;
+% контрольное сравнение
 if showStats
     fprintf('%.0f год \n', vpa(year))
     fprintf('Истинное значение ВВП страны: %.4f \n', vpa(countryRealGdp))
     fprintf('ВВП страны на основе таблиц МОБ: %.4f \n', vpa(GDP))
-    fprintf('Относительная ошибка ВВП: %.2f(%) \n', ...
+    fprintf('Относительная ошибка ВВП: %.2f%% \n', ...
         vpa((countryRealGdp - GDP) / countryRealGdp * 100))
-    fprintf('norm(X - AX)): %.4f \n', ...
-        vpa(norm(X - A * X)))
+    fprintf('norm(I - RI)): %.4f \n\n', ...
+        vpa(norm(I - R * I)))
 end
 
 % агрегирование
-Xa = zeros(aggregNumb,1);
-Aa = zeros(aggregNumb,aggregNumb);
-Ia = zeros(aggregNumb - 1,1);
+Ia = zeros(aggregNumb, 1);
+Ra = zeros(aggregNumb, aggregNumb);
+Cpa = zeros(aggregNumb - 1, 1);
 
-if aggregNumb ~= size(X,1)
-    [Xa, Aa] = aggregation(X,A,aggregSect);
+if aggregNumb ~= size(I,1)
+    [Ia, Ra] = aggregation(I, R, aggregSect);
 end
 
 % вычисление показателей агрегированной экономики
-rp = zeros(agregN - 1,1);
-rw = zeros(agregN - 1,1);
-rt = zeros(agregN - 1,1);
-tp = zeros(agregN,1); 
-rn = zeros(agregN,1);
+rp = zeros(aggregNumb - 1, 1);
+rw = zeros(aggregNumb - 1, 1);
+rt = zeros(aggregNumb - 1, 1);
+tp = zeros(aggregNumb, 1); 
+rn = zeros(aggregNumb, 1);
 
-for k = 1 : agregN - 1
+for k = 1 : aggregNumb - 1
     tmpind = find(aggregSect == k)';
-    rp(k) = 1 - Aa(agregN,k);
+    rp(k) = 1 - Ra(aggregNumb,k);
     rw(k) = sum(W(tmpind)) / sum(VA(tmpind));
     rt(k) = sum(TProduction(tmpind)) / sum(VA(tmpind));
-    tp(k) = sum(TProducts(2,tmpind)) / Xa(k);
-    Ia(k) = sum(I(tmpind));
+    tp(k) = sum(TProducts(2,tmpind)) / Ia(k);
+    Cpa(k) = sum(Cp(tmpind));
 end
-tp(agregN) = Aa(agregN,agregN); 
+tp(aggregNumb) = Ra(aggregNumb, aggregNumb); 
 
-rn(1:end - 1,1) = Ia ./ ...
-    ((1 - rp - tp(1:end - 1)) .* (1 - rw - rt) .* Aa(1:end - 1,:) * Xa);
-rn(end,1) = sum(Ia) / (Aa(end,:) * Xa);
+rn(1:end - 1, 1) = Cpa ./ ...
+    ((1 - rp - tp(1:end - 1)) .* (1 - rw - rt) .* Ia(1:end - 1));
+rn(end, 1) = sum(Cpa) / (Ia(end));
+
+% создание окончательной структуры, содержащей информацию о 
+% статической модели
+inputOutputModel.I = Ia;
+inputOutputModel.R = Ra;
+inputOutputModel.Cp = Cpa;
+inputOutputModel.rp = rp;
+inputOutputModel.rw = rw;
+inputOutputModel.rt = rt;
+inputOutputModel.tp = tp;
+inputOutputModel.rn = rn;
+
+inputOutputModel.Fe = zeros(aggregNumb, 1);
+inputOutputModel.M = zeros(aggregNumb, aggregNumb);
+
+fprintf('norm(I - RI)): %.4f \n\n', ...
+    vpa(norm(inputOutputModel.I - inputOutputModel.R * inputOutputModel.I)))
 
 end
 
