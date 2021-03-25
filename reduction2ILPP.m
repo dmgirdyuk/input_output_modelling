@@ -1,6 +1,6 @@
 function lpProblem = reduction2ILPP(uProb)
 % Сведение билинейной интервальной задачи оптимального управления к задаче
-% линейного программирования
+% линейного программирования. Подробности во 2 параграфе 4 главы книги
 
 N = uProb.N;
 n = uProb.n;
@@ -136,4 +136,3 @@ lpProblem.dLower = vLower';
 lpProblem.dUpper = vUpper';
 
 end
-
