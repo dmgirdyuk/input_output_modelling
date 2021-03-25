@@ -78,9 +78,3 @@ controlProblem.vOpt = controlProblem.vOptNew;
 showControlResults(controlProblem, lpProblem) % TODO
 
 end
-
-
-
-
-
-

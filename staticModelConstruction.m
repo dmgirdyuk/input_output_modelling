@@ -203,6 +203,3 @@ fprintf('norm(I - RI)): %.4f \n\n', ...
     vpa(norm(inputOutputModel.I - inputOutputModel.R * inputOutputModel.I)))
 
 end
-
-
-
